@@ -13,11 +13,11 @@ models_folder = "app/models"
 logger = get_logger()
 
 client = AsyncIOMotorClient(cfg.MONGODB_URI, tz_aware=True)
-db_name = cfg.MONGODB_URI.rsplit('/', 1)[1]
+db_name = cfg.MONGODB_URI.rsplit("/", 1)[1]
 
 
 async def init_db():
-    document_models = []
+    document_models = set()
 
     for filename in os.listdir(models_folder):
         if filename.endswith(".py") and filename != "__init__.py":
@@ -28,12 +28,15 @@ async def init_db():
             for attr_name in dir(model_module):
                 attr = getattr(model_module, attr_name)
 
-                if inspect.isclass(attr) and issubclass(attr, beanie.Document) and attr is not beanie.Document:
-                    document_models.append(attr)
+                if (
+                    inspect.isclass(attr)
+                    and issubclass(attr, beanie.Document)
+                    and attr is not beanie.Document
+                ):
+                    document_models.add(attr)
 
     logger.info(f"Loaded models: {[model.__name__ for model in document_models]}")
 
     await beanie.init_beanie(
-        database=getattr(client, db_name),
-        document_models=document_models
+        database=getattr(client, db_name), document_models=list(document_models)
     )
